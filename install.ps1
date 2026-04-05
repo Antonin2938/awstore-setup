@@ -91,36 +91,26 @@ function Config-ClaudeCode {
 }
 
 function Config-OpenCode {
+    # OpenCode utilise le SDK Anthropic Go qui lit ANTHROPIC_BASE_URL automatiquement
     Set-EnvPermanent "ANTHROPIC_BASE_URL" $BASE_URL
     Set-EnvPermanent "ANTHROPIC_API_KEY" $API_KEY
-
-    $configDir = "$env:USERPROFILE\.config\opencode"
-    if ((Test-Path $configDir) -or (Get-Command opencode -ErrorAction SilentlyContinue)) {
-        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-        @{
-            provider = "anthropic"
-            model = "claude-sonnet-4.5"
-            apiKey = $API_KEY
-            baseURL = $BASE_URL
-        } | ConvertTo-Json | Set-Content "$configDir\config.json"
-        Write-Host "    -> Config ecrite dans $configDir\config.json" -ForegroundColor Green
-    }
     Write-Host "    -> Variables d'environnement configurees" -ForegroundColor Green
+    Write-Host "    -> OpenCode lira ANTHROPIC_BASE_URL automatiquement"
     return "OpenCode"
 }
 
 function Config-Aider {
+    # Aider utilise LiteLLM qui ajoute /v1/messages automatiquement - pas de /v1
     Set-EnvPermanent "ANTHROPIC_API_KEY" $API_KEY
-    Set-EnvPermanent "ANTHROPIC_BASE_URL" $BASE_URL_V1
+    Set-EnvPermanent "ANTHROPIC_BASE_URL" $BASE_URL
 
-    $configDir = "$env:USERPROFILE\.config\aider"
-    New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+    # Fichier config pour le modele par defaut
     @"
-anthropic-api-key: $API_KEY
-anthropic-api-base: $BASE_URL_V1
 model: anthropic/claude-sonnet-4.5
-"@ | Set-Content "$configDir\.aider.conf.yml"
-    Write-Host "    -> Config ecrite dans $configDir\.aider.conf.yml" -ForegroundColor Green
+"@ | Set-Content "$env:USERPROFILE\.aider.conf.yml"
+    Write-Host "    -> Config modele ecrite dans ~/.aider.conf.yml" -ForegroundColor Green
+    Write-Host "    -> Variables d'environnement configurees" -ForegroundColor Green
+    Write-Host "    -> IMPORTANT: pas de /v1 (LiteLLM l'ajoute tout seul)"
     return "Aider"
 }
 
@@ -194,9 +184,9 @@ function Config-Aichat {
     }
 
     @"
-model: anthropic:claude-sonnet-4.5
+model: claude:claude-sonnet-4.5
 clients:
-  - type: anthropic
+  - type: claude
     api_key: $API_KEY
     api_base: $BASE_URL_V1
     models:

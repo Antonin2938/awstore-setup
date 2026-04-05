@@ -109,39 +109,31 @@ config_claude_code() {
 }
 
 config_opencode() {
+    # OpenCode utilise le SDK Anthropic Go qui lit ANTHROPIC_BASE_URL automatiquement
+    # Pas de champ baseURL dans le fichier config, seules les env vars fonctionnent
     ensure_shell_header
     add_env_to_shell "ANTHROPIC_BASE_URL" "$BASE_URL"
     add_env_to_shell "ANTHROPIC_API_KEY" "$API_KEY"
-
-    if command -v opencode &>/dev/null || [ -d "$HOME/.config/opencode" ]; then
-        mkdir -p "$HOME/.config/opencode"
-        cat > "$HOME/.config/opencode/config.json" <<EOF
-{
-  "provider": "anthropic",
-  "model": "claude-sonnet-4.5",
-  "apiKey": "$API_KEY",
-  "baseURL": "$BASE_URL"
-}
-EOF
-        echo "    -> Config ecrite dans ~/.config/opencode/config.json"
-    fi
     echo "    -> Variables ajoutees dans $SHELL_RC"
+    echo "    -> OpenCode lira ANTHROPIC_BASE_URL automatiquement"
     CONFIGURED+=("OpenCode")
 }
 
 config_aider() {
+    # Aider utilise LiteLLM qui ajoute /v1/messages automatiquement
+    # Il faut donc mettre l'URL SANS /v1
+    # La config base URL passe par env vars ou .env, pas par .aider.conf.yml
     ensure_shell_header
     add_env_to_shell "ANTHROPIC_API_KEY" "$API_KEY"
-    add_env_to_shell "ANTHROPIC_BASE_URL" "$BASE_URL_V1"
+    add_env_to_shell "ANTHROPIC_BASE_URL" "$BASE_URL"
 
-    mkdir -p "$HOME/.config/aider"
-    cat > "$HOME/.config/aider/.aider.conf.yml" <<EOF
-anthropic-api-key: $API_KEY
-anthropic-api-base: $BASE_URL_V1
+    # Fichier .aider.conf.yml pour le modele par defaut
+    cat > "$HOME/.aider.conf.yml" <<EOF
 model: anthropic/claude-sonnet-4.5
 EOF
-    echo "    -> Config ecrite dans ~/.config/aider/.aider.conf.yml"
+    echo "    -> Config modele ecrite dans ~/.aider.conf.yml"
     echo "    -> Variables ajoutees dans $SHELL_RC"
+    echo "    -> IMPORTANT: pas de /v1 (LiteLLM l'ajoute tout seul)"
     CONFIGURED+=("Aider")
 }
 
@@ -215,9 +207,9 @@ config_aichat() {
     fi
 
     cat > "$CONFIG_FILE" <<EOF
-model: anthropic:claude-sonnet-4.5
+model: claude:claude-sonnet-4.5
 clients:
-  - type: anthropic
+  - type: claude
     api_key: $API_KEY
     api_base: $BASE_URL_V1
     models:
