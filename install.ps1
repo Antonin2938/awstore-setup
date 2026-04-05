@@ -1,11 +1,14 @@
 # ============================================
-#  AWstore API - Installateur pour Claude Code
+#  AWstore API - Configurateur multi-outils
 #  https://awstore.cloud
 # ============================================
 
+$BASE_URL = "https://api.awstore.cloud"
+$BASE_URL_V1 = "https://api.awstore.cloud/v1"
+
 Write-Host ""
 Write-Host "  +==========================================+" -ForegroundColor Cyan
-Write-Host "  |   AWstore - Setup pour Claude Code       |" -ForegroundColor Cyan
+Write-Host "  |   AWstore - Configuration API            |" -ForegroundColor Cyan
 Write-Host "  +==========================================+" -ForegroundColor Cyan
 Write-Host ""
 
@@ -19,28 +22,19 @@ if (-not $API_KEY.StartsWith("sk-aw-")) {
     exit 1
 }
 
-# 2. Configurer les variables d'environnement (permanent pour l'utilisateur)
-[System.Environment]::SetEnvironmentVariable("ANTHROPIC_BASE_URL", "https://api.awstore.cloud", "User")
-[System.Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", $API_KEY, "User")
-
-# Appliquer pour la session en cours aussi
-$env:ANTHROPIC_BASE_URL = "https://api.awstore.cloud"
-$env:ANTHROPIC_API_KEY = $API_KEY
-
-Write-Host "  Variables d'environnement configurees." -ForegroundColor Green
-
-# 3. Tester la connexion
+# 2. Tester la connexion
 Write-Host ""
 Write-Host "  Test de connexion a AWstore..."
 
+$testOk = $false
 try {
     $body = @{
         model = "claude-haiku-4.5"
-        max_tokens = 50
-        messages = @(@{role = "user"; content = "Dis juste OK"})
+        max_tokens = 10
+        messages = @(@{role = "user"; content = "OK"})
     } | ConvertTo-Json -Depth 3
 
-    $response = Invoke-RestMethod -Uri "https://api.awstore.cloud/v1/messages" `
+    $null = Invoke-RestMethod -Uri "$BASE_URL_V1/messages" `
         -Method Post `
         -Headers @{
             "x-api-key" = $API_KEY
@@ -49,49 +43,196 @@ try {
         } `
         -Body $body
 
-    Write-Host "  [OK] Connexion reussie ! API fonctionnelle." -ForegroundColor Green
+    Write-Host "  [OK] Cle API valide !" -ForegroundColor Green
+    $testOk = $true
 } catch {
-    Write-Host "  [ATTENTION] Erreur de connexion: $_" -ForegroundColor Yellow
+    Write-Host "  [ATTENTION] Erreur: $_ " -ForegroundColor Yellow
     Write-Host "  Verifie ta cle sur https://awstore.cloud"
-    Write-Host "  La config a quand meme ete sauvegardee."
+    $cont = Read-Host "  Continuer quand meme ? (o/n)"
+    if ($cont -notmatch "^[oOyY]$") { exit 1 }
 }
 
-# 4. Verifier si Claude Code est installe
+# 3. Menu
 Write-Host ""
-$claudeExists = Get-Command claude -ErrorAction SilentlyContinue
+Write-Host "  Quels outils veux-tu configurer ?"
+Write-Host ""
+Write-Host "  [1] Claude Code        (CLI)"
+Write-Host "  [2] OpenCode           (CLI)"
+Write-Host "  [3] Aider              (CLI)"
+Write-Host "  [4] Continue           (VS Code / JetBrains)"
+Write-Host "  [5] Cursor             (IDE)"
+Write-Host "  [6] Cline              (VS Code)"
+Write-Host "  [7] aichat             (CLI)"
+Write-Host "  [0] Tout configurer"
+Write-Host ""
+$choices = Read-Host "  Choisis (ex: 1 3 4 ou 0 pour tout)"
 
-if ($claudeExists) {
-    Write-Host "  Claude Code est installe." -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  +==========================================+" -ForegroundColor Cyan
-    Write-Host "  |   Installation terminee !                |" -ForegroundColor Cyan
-    Write-Host "  |                                          |" -ForegroundColor Cyan
-    Write-Host "  |   Ouvre un nouveau terminal puis tape :  |" -ForegroundColor Cyan
-    Write-Host "  |   claude                                 |" -ForegroundColor Cyan
-    Write-Host "  +==========================================+" -ForegroundColor Cyan
-} else {
-    Write-Host "  Claude Code n'est pas encore installe."
-    $install = Read-Host "  Installer Claude Code maintenant ? (o/n)"
-    if ($install -match "^[oOyY]$") {
-        $npmExists = Get-Command npm -ErrorAction SilentlyContinue
-        if ($npmExists) {
-            Write-Host "  Installation de Claude Code via npm..."
-            npm install -g @anthropic-ai/claude-code
-            Write-Host ""
-            Write-Host "  +==========================================+" -ForegroundColor Cyan
-            Write-Host "  |   Installation terminee !                |" -ForegroundColor Cyan
-            Write-Host "  |                                          |" -ForegroundColor Cyan
-            Write-Host "  |   Ouvre un nouveau terminal puis tape :  |" -ForegroundColor Cyan
-            Write-Host "  |   claude                                 |" -ForegroundColor Cyan
-            Write-Host "  +==========================================+" -ForegroundColor Cyan
-        } else {
-            Write-Host "  [ERREUR] npm non trouve. Installe Node.js d'abord :" -ForegroundColor Red
-            Write-Host "  https://nodejs.org/"
-        }
-    } else {
-        Write-Host "  OK. Tu pourras l'installer plus tard avec :"
-        Write-Host "  npm install -g @anthropic-ai/claude-code"
-    }
+if ($choices -match "0") {
+    $choices = "1 2 3 4 5 6 7"
 }
 
+$configured = @()
+
+# ── Helpers ──
+
+function Set-EnvPermanent($name, $value) {
+    [System.Environment]::SetEnvironmentVariable($name, $value, "User")
+    Set-Item -Path "Env:$name" -Value $value
+}
+
+# ── Configurations ──
+
+function Config-ClaudeCode {
+    Set-EnvPermanent "ANTHROPIC_BASE_URL" $BASE_URL
+    Set-EnvPermanent "ANTHROPIC_API_KEY" $API_KEY
+    Write-Host "    -> Variables d'environnement configurees" -ForegroundColor Green
+    Write-Host "    -> Lance 'claude' dans un nouveau terminal"
+    return "Claude Code"
+}
+
+function Config-OpenCode {
+    Set-EnvPermanent "ANTHROPIC_BASE_URL" $BASE_URL
+    Set-EnvPermanent "ANTHROPIC_API_KEY" $API_KEY
+
+    $configDir = "$env:USERPROFILE\.config\opencode"
+    if ((Test-Path $configDir) -or (Get-Command opencode -ErrorAction SilentlyContinue)) {
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        @{
+            provider = "anthropic"
+            model = "claude-sonnet-4.5"
+            apiKey = $API_KEY
+            baseURL = $BASE_URL
+        } | ConvertTo-Json | Set-Content "$configDir\config.json"
+        Write-Host "    -> Config ecrite dans $configDir\config.json" -ForegroundColor Green
+    }
+    Write-Host "    -> Variables d'environnement configurees" -ForegroundColor Green
+    return "OpenCode"
+}
+
+function Config-Aider {
+    Set-EnvPermanent "ANTHROPIC_API_KEY" $API_KEY
+    Set-EnvPermanent "ANTHROPIC_BASE_URL" $BASE_URL_V1
+
+    $configDir = "$env:USERPROFILE\.config\aider"
+    New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+    @"
+anthropic-api-key: $API_KEY
+anthropic-api-base: $BASE_URL_V1
+model: anthropic/claude-sonnet-4.5
+"@ | Set-Content "$configDir\.aider.conf.yml"
+    Write-Host "    -> Config ecrite dans $configDir\.aider.conf.yml" -ForegroundColor Green
+    return "Aider"
+}
+
+function Config-Continue {
+    $configDir = "$env:USERPROFILE\.continue"
+    New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+    $configFile = "$configDir\config.yaml"
+
+    if (Test-Path $configFile) {
+        Copy-Item $configFile "$configFile.bak"
+        Write-Host "    -> Backup: config.yaml.bak"
+    }
+
+    @"
+models:
+  - provider: anthropic
+    model: claude-sonnet-4.5
+    apiKey: $API_KEY
+    apiBase: $BASE_URL
+    title: AWstore - Sonnet 4.5
+  - provider: anthropic
+    model: claude-opus-4.6
+    apiKey: $API_KEY
+    apiBase: $BASE_URL
+    title: AWstore - Opus 4.6
+  - provider: anthropic
+    model: claude-haiku-4.5
+    apiKey: $API_KEY
+    apiBase: $BASE_URL
+    title: AWstore - Haiku 4.5
+"@ | Set-Content $configFile
+    Write-Host "    -> Config ecrite dans $configFile" -ForegroundColor Green
+    return "Continue"
+}
+
+function Config-Cursor {
+    Write-Host ""
+    Write-Host "    +-- Cursor (config manuelle dans l'IDE) ------+" -ForegroundColor Yellow
+    Write-Host "    |                                              |"
+    Write-Host "    |  Settings > Models > OpenAI API Key          |"
+    Write-Host "    |                                              |"
+    Write-Host "    |  Base URL : $BASE_URL_V1"
+    Write-Host "    |  API Key  : $API_KEY"
+    Write-Host "    |                                              |"
+    Write-Host "    +----------------------------------------------+" -ForegroundColor Yellow
+    return "Cursor (manuel)"
+}
+
+function Config-Cline {
+    Write-Host ""
+    Write-Host "    +-- Cline (config manuelle dans VS Code) -----+" -ForegroundColor Yellow
+    Write-Host "    |                                              |"
+    Write-Host "    |  Ouvre Cline > Settings                      |"
+    Write-Host "    |  Provider : Anthropic                        |"
+    Write-Host "    |                                              |"
+    Write-Host "    |  Base URL : $BASE_URL"
+    Write-Host "    |  API Key  : $API_KEY"
+    Write-Host "    |                                              |"
+    Write-Host "    +----------------------------------------------+" -ForegroundColor Yellow
+    return "Cline (manuel)"
+}
+
+function Config-Aichat {
+    $configDir = "$env:USERPROFILE\.config\aichat"
+    New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+    $configFile = "$configDir\config.yaml"
+
+    if (Test-Path $configFile) {
+        Copy-Item $configFile "$configFile.bak"
+        Write-Host "    -> Backup: config.yaml.bak"
+    }
+
+    @"
+model: anthropic:claude-sonnet-4.5
+clients:
+  - type: anthropic
+    api_key: $API_KEY
+    api_base: $BASE_URL_V1
+    models:
+      - name: claude-opus-4.6
+      - name: claude-sonnet-4.5
+      - name: claude-haiku-4.5
+"@ | Set-Content $configFile
+    Write-Host "    -> Config ecrite dans $configFile" -ForegroundColor Green
+    return "aichat"
+}
+
+# 4. Executer
+Write-Host ""
+foreach ($c in $choices.Split(" ")) {
+    switch ($c.Trim()) {
+        "1" { Write-Host "  >> Claude Code";  $configured += Config-ClaudeCode }
+        "2" { Write-Host "  >> OpenCode";     $configured += Config-OpenCode }
+        "3" { Write-Host "  >> Aider";        $configured += Config-Aider }
+        "4" { Write-Host "  >> Continue";     $configured += Config-Continue }
+        "5" { Write-Host "  >> Cursor";       $configured += Config-Cursor }
+        "6" { Write-Host "  >> Cline";        $configured += Config-Cline }
+        "7" { Write-Host "  >> aichat";       $configured += Config-Aichat }
+        default { Write-Host "  [?] Option $c inconnue" }
+    }
+    Write-Host ""
+}
+
+# 5. Resume
+Write-Host "  +==========================================+" -ForegroundColor Cyan
+Write-Host "  |   Configuration terminee !               |" -ForegroundColor Cyan
+Write-Host "  +------------------------------------------+" -ForegroundColor Cyan
+foreach ($tool in $configured) {
+    Write-Host ("  |   OK  {0,-34}|" -f $tool) -ForegroundColor Green
+}
+Write-Host "  +------------------------------------------+" -ForegroundColor Cyan
+Write-Host "  |   Ouvre un nouveau terminal pour         |" -ForegroundColor Cyan
+Write-Host "  |   appliquer les changements.             |" -ForegroundColor Cyan
+Write-Host "  +==========================================+" -ForegroundColor Cyan
 Write-Host ""

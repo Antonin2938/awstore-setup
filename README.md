@@ -1,6 +1,18 @@
-# AWstore - Setup automatique pour Claude Code
+# AWstore - Configuration API pour outils IA
 
-Installe et configure Claude Code avec l'API AWstore en une seule commande.
+Configure l'API AWstore dans tes outils de code IA en une seule commande.
+
+## Outils supportes
+
+| Outil | Type | Config |
+|---|---|---|
+| Claude Code | CLI | Automatique |
+| OpenCode | CLI | Automatique |
+| Aider | CLI | Automatique |
+| Continue | VS Code / JetBrains | Automatique |
+| aichat | CLI | Automatique |
+| Cursor | IDE | Instructions affichees |
+| Cline | VS Code | Instructions affichees |
 
 ## Installation rapide
 
@@ -25,9 +37,11 @@ irm https://raw.githubusercontent.com/Antonin2938/awstore-setup/main/install.ps1
 ## Ce que fait le script
 
 1. Demande ta cle API AWstore (`sk-aw-...`)
-2. Configure les variables d'environnement automatiquement
-3. Teste la connexion a l'API
-4. Propose d'installer Claude Code si besoin
+2. Teste la connexion a l'API
+3. Te laisse choisir quels outils configurer
+4. Ecrit les fichiers de config et variables d'environnement
+
+Le script ne modifie que la config API. Il n'installe aucun outil.
 
 ## Obtenir une cle API
 
